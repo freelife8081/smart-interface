@@ -78,7 +78,13 @@ function displayFunctions(abi, filter) {
       inp.oninput = async () => {
         try {
           const args = inputElems.map(i => convertType(i.value, i.dataset.type, i.dataset.name));
-          const estimate = await contract.estimateGas[fn.name](...args);
+          // Skip gas estimation if it fails
+          let estimate = "-";
+          try {
+            estimate = await contract.estimateGas[fn.name](...args);
+          } catch (err) {
+            estimate = "Estimation Failed";
+          }
           gasInfo.innerText = `Estimated Gas: ${estimate.toString()}`;
         } catch {
           gasInfo.innerText = `Estimated Gas: -`;
