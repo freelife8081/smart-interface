@@ -15,7 +15,7 @@ async function loadContract() {
   try {
     const abi = JSON.parse(abiText);
     contract = new ethers.Contract(contractAddr, abi, signer);
-    await checkOwner(); // check for owner
+    await checkOwner();
     displayFunctionTabs(abi);
     displayFunctions(abi, "all");
   } catch (err) {
@@ -35,7 +35,6 @@ function displayFunctionTabs(abi) {
   const tabs = document.getElementById("functionTabs");
   tabs.innerHTML = "";
   const types = ["all", "mint", "burn", "transfer"];
-
   types.forEach(type => {
     const btn = document.createElement("button");
     btn.innerText = type.toUpperCase();
@@ -55,15 +54,21 @@ function displayFunctions(abi, filter) {
   abi.filter(f => f.type === "function").forEach(fn => {
     const isOwnerOnly = ["mint", "burn"].includes(fn.name.toLowerCase());
     if (isOwnerOnly && ownerAddress && currentAddress.toLowerCase() !== ownerAddress.toLowerCase()) return;
-
     if (filter !== "all" && !fn.name.toLowerCase().includes(filter)) return;
 
-    const box = document.createElement("div");
-    box.className = "function-box";
+    const wrapper = document.createElement("div");
+    wrapper.className = "function-box";
 
-    const title = document.createElement("h3");
-    title.innerText = `${fn.name} (${fn.stateMutability})`;
-    box.appendChild(title);
+    const header = document.createElement("div");
+    header.className = "function-header";
+    header.innerText = `${fn.name} (${fn.stateMutability})`;
+    header.onclick = () => {
+      const body = wrapper.querySelector(".function-body");
+      body.style.display = body.style.display === "block" ? "none" : "block";
+    };
+
+    const body = document.createElement("div");
+    body.className = "function-body";
 
     const inputElems = fn.inputs.map((input, idx) => {
       const label = document.createElement("label");
@@ -71,9 +76,9 @@ function displayFunctions(abi, filter) {
       const inp = document.createElement("input");
       inp.dataset.index = idx;
       inp.dataset.type = input.type;
-      inp.dataset.name = input.name || ""; // keep name for hint matching
-      box.appendChild(label);
-      box.appendChild(inp);
+      inp.dataset.name = input.name || "";
+      body.appendChild(label);
+      body.appendChild(inp);
       return inp;
     });
 
@@ -81,27 +86,35 @@ function displayFunctions(abi, filter) {
     btn.innerText = `Execute ${fn.name}`;
     btn.onclick = async () => {
       const args = inputElems.map(inp => convertType(inp.value, inp.dataset.type, inp.dataset.name));
-      try {
-        const result = await contract[fn.name](...args);
-        if (fn.stateMutability === "view" || fn.stateMutability === "pure") {
-          const output = await result;
-          document.getElementById("functionOutput").innerText = formatResult(output);
-        } else {
-          document.getElementById("status").innerText = "Transaction sent... awaiting confirmation";
-          await result.wait();
-          document.getElementById("status").innerText = "Transaction confirmed.";
+      if (fn.stateMutability === "view" || fn.stateMutability === "pure") {
+        try {
+          const result = await contract[fn.name](...args);
+          document.getElementById("functionOutput").innerText = formatResult(result);
+        } catch (err) {
+          document.getElementById("status").innerText = "Error: " + err.message;
         }
-      } catch (err) {
-        document.getElementById("status").innerText = "Error: " + err.message;
+      } else {
+        try {
+          const estimatedGas = await contract.estimateGas[fn.name](...args);
+          showModal(fn.name, estimatedGas, async () => {
+            const tx = await contract[fn.name](...args);
+            document.getElementById("status").innerText = "Transaction sent... awaiting confirmation";
+            await tx.wait();
+            document.getElementById("status").innerText = "Transaction confirmed.";
+          });
+        } catch (err) {
+          document.getElementById("status").innerText = "Error estimating gas or executing: " + err.message;
+        }
       }
     };
 
-    box.appendChild(btn);
-    container.appendChild(box);
+    body.appendChild(btn);
+    wrapper.appendChild(header);
+    wrapper.appendChild(body);
+    container.appendChild(wrapper);
   });
 }
 
-// ✅ Enhanced input converter: detects token amount fields & uses parseUnits
 function convertType(value, type, nameHint = "") {
   if (type.includes("int")) {
     if (nameHint.toLowerCase().includes("amount") || nameHint.toLowerCase().includes("value")) {
@@ -115,11 +128,21 @@ function convertType(value, type, nameHint = "") {
 }
 
 function formatResult(result) {
-  if (Array.isArray(result)) {
-    return JSON.stringify(result.map(r => r.toString()), null, 2);
-  }
-  if (typeof result === "object") {
-    return JSON.stringify(result, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2);
-  }
+  if (Array.isArray(result)) return JSON.stringify(result.map(r => r.toString()), null, 2);
+  if (typeof result === "object") return JSON.stringify(result, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2);
   return result.toString();
+}
+
+function showModal(functionName, gas, onConfirm) {
+  document.getElementById("modalFunctionName").innerText = `Function: ${functionName}`;
+  document.getElementById("modalGas").innerText = gas.toString();
+  document.getElementById("confirmModal").style.display = "block";
+
+  document.getElementById("confirmYes").onclick = () => {
+    document.getElementById("confirmModal").style.display = "none";
+    onConfirm();
+  };
+  document.getElementById("confirmNo").onclick = () => {
+    document.getElementById("confirmModal").style.display = "none";
+  };
 }
