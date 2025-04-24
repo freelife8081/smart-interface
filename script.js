@@ -71,6 +71,7 @@ function displayFunctions(abi, filter) {
       const inp = document.createElement("input");
       inp.dataset.index = idx;
       inp.dataset.type = input.type;
+      inp.dataset.name = input.name || ""; // keep name for hint matching
       box.appendChild(label);
       box.appendChild(inp);
       return inp;
@@ -79,7 +80,7 @@ function displayFunctions(abi, filter) {
     const btn = document.createElement("button");
     btn.innerText = `Execute ${fn.name}`;
     btn.onclick = async () => {
-      const args = inputElems.map(inp => convertType(inp.value, inp.dataset.type));
+      const args = inputElems.map(inp => convertType(inp.value, inp.dataset.type, inp.dataset.name));
       try {
         const result = await contract[fn.name](...args);
         if (fn.stateMutability === "view" || fn.stateMutability === "pure") {
@@ -100,8 +101,14 @@ function displayFunctions(abi, filter) {
   });
 }
 
-function convertType(value, type) {
-  if (type.includes("int")) return ethers.BigNumber.from(value);
+// ✅ Enhanced input converter: detects token amount fields & uses parseUnits
+function convertType(value, type, nameHint = "") {
+  if (type.includes("int")) {
+    if (nameHint.toLowerCase().includes("amount") || nameHint.toLowerCase().includes("value")) {
+      return ethers.utils.parseUnits(value, 18); // assumes 18 decimals
+    }
+    return ethers.BigNumber.from(value);
+  }
   if (type === "bool") return value.toLowerCase() === "true";
   if (type === "address") return value.toLowerCase();
   return value;
