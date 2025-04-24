@@ -27,12 +27,6 @@ button {
 button:hover {
   background-color: #2c3e9f;
 }
-.function-box {
-  border: 1px solid #ddd;
-  padding: 15px;
-  border-radius: 8px;
-  margin-top: 15px;
-}
 label {
   display: block;
   margin-top: 10px;
@@ -49,6 +43,7 @@ label {
   display: flex;
   gap: 10px;
   margin-top: 20px;
+  flex-wrap: wrap;
 }
 .tabs button {
   width: auto;
@@ -56,4 +51,83 @@ label {
 }
 .active-tab {
   background-color: #2c3e9f !important;
+}
+
+/* 🔽 Accordion/Collapsible Function Box */
+.function-box {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-top: 15px;
+  overflow: hidden;
+}
+.function-box summary {
+  cursor: pointer;
+  padding: 12px 15px;
+  background-color: #f2f4f8;
+  font-weight: bold;
+  font-size: 16px;
+  border-bottom: 1px solid #ddd;
+}
+.function-box details[open] summary {
+  background-color: #e0e7ff;
+}
+.function-box .function-body {
+  padding: 15px;
+}
+
+/* 🧾 Status */
+.status-message {
+  margin-top: 15px;
+  color: #3f51b5;
+  font-weight: bold;
+}
+
+/* 🧠 Modal */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed;
+  z-index: 99;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.4);
+}
+.modal-content {
+  background-color: #fff;
+  margin: 10% auto;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  text-align: center;
+}
+.modal-title {
+  font-size: 20px;
+  font-weight: bold;
+}
+.modal-buttons {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+}
+.modal-buttons button {
+  width: 40%;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 6px;
+}
+#confirmYes {
+  background-color: #4caf50;
+}
+#confirmYes:hover {
+  background-color: #43a047;
+}
+#confirmNo {
+  background-color: #f44336;
+}
+#confirmNo:hover {
+  background-color: #e53935;
 }
