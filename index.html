@@ -9,6 +9,7 @@
 <body>
   <div class="container">
     <h1>Smart Contract Interactor</h1>
+    
     <button id="connectWallet">Connect Wallet</button>
     <p id="walletAddress"></p>
 
@@ -17,9 +18,24 @@
     <button onclick="loadContract()">Load Contract</button>
 
     <div class="tabs" id="functionTabs"></div>
+    
     <div id="functionsContainer"></div>
-    <div id="functionOutput"></div>
-    <p id="status"></p>
+
+    <div id="functionOutput" class="output-box"></div>
+    <p id="status" class="status-message"></p>
+  </div>
+
+  <!-- Modal for confirmation -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-title">Confirm Transaction</span>
+      <p id="modalFunctionName"></p>
+      <p>Estimated Gas: <span id="modalGas"></span></p>
+      <div class="modal-buttons">
+        <button id="confirmYes">Yes, Execute</button>
+        <button id="confirmNo">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
