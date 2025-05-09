@@ -1,5 +1,6 @@
-let provider, signer, contract, currentAddress, ownerAddress = null;
-let pendingFn = null; // for modal confirm
+let provider, signer, contract, currentAddress = null;
+let pendingFn = null;
+let tokenDecimals = 18;
 
 document.getElementById("connectWallet").onclick = async () => {
   if (!window.ethereum) return alert("MetaMask not detected.");
@@ -14,21 +15,21 @@ async function loadContract() {
   const abiText = document.getElementById("abiInput").value;
   const contractAddr = document.getElementById("contractAddressInput").value;
   try {
+    if (!ethers.utils.isAddress(contractAddr)) {
+      alert("Invalid contract address");
+      return;
+    }
     const abi = JSON.parse(abiText);
     contract = new ethers.Contract(contractAddr, abi, signer);
-    await checkOwner();
+    try {
+      tokenDecimals = await contract.decimals();
+    } catch {
+      tokenDecimals = 18;
+    }
     displayFunctionTabs(abi);
     displayFunctions(abi, "all");
   } catch (err) {
     alert("Error loading contract: " + err.message);
-  }
-}
-
-async function checkOwner() {
-  try {
-    ownerAddress = await contract.owner();
-  } catch {
-    ownerAddress = null;
   }
 }
 
@@ -54,9 +55,6 @@ function displayFunctions(abi, filter) {
   const container = document.getElementById("functionsContainer");
   container.innerHTML = "";
   abi.filter(f => f.type === "function").forEach(fn => {
-    const isOwnerOnly = ["mint", "burn"].includes(fn.name.toLowerCase());
-    if (isOwnerOnly && ownerAddress && currentAddress.toLowerCase() !== ownerAddress.toLowerCase()) return;
-
     if (filter !== "all" && !fn.name.toLowerCase().includes(filter)) return;
 
     const box = document.createElement("div");
@@ -90,7 +88,12 @@ function displayFunctions(abi, filter) {
       inp.oninput = async () => {
         try {
           const args = inputElems.map(i => convertType(i.value, i.dataset.type, i.dataset.name));
-          const estimate = await contract.estimateGas[fn.name](...args);
+          let estimate = "-";
+          try {
+            estimate = await contract.estimateGas[fn.name](...args);
+          } catch (err) {
+            estimate = "Estimation Failed";
+          }
           gasInfo.innerText = `Estimated Gas: ${estimate.toString()}`;
         } catch {
           gasInfo.innerText = `Estimated Gas: -`;
@@ -131,7 +134,7 @@ function displayFunctions(abi, filter) {
 function convertType(value, type, nameHint = "") {
   if (type.includes("int")) {
     if (nameHint.toLowerCase().includes("amount") || nameHint.toLowerCase().includes("value")) {
-      return ethers.utils.parseUnits(value, 18);
+      return ethers.utils.parseUnits(value, tokenDecimals);
     }
     return ethers.BigNumber.from(value);
   }
@@ -142,15 +145,30 @@ function convertType(value, type, nameHint = "") {
 
 function formatResult(result) {
   if (Array.isArray(result)) {
-    return JSON.stringify(result.map(r => r.toString()), null, 2);
+    return JSON.stringify(result.map(r => {
+      return (r._isBigNumber)
+        ? ethers.utils.formatUnits(r, tokenDecimals)
+        : r.toString();
+    }), null, 2);
   }
-  if (typeof result === "object") {
-    return JSON.stringify(result, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2);
+
+  if (result && typeof result === "object") {
+    if (result._isBigNumber) {
+      return ethers.utils.formatUnits(result, tokenDecimals);
+    }
+
+    return JSON.stringify(result, (key, value) => {
+      if (value && typeof value === "object" && value._isBigNumber) {
+        return ethers.utils.formatUnits(value, tokenDecimals);
+      }
+      return value;
+    }, 2);
   }
+
   return result.toString();
 }
 
-// Modal Functions
+// Modal control
 function openModal() {
   document.getElementById("confirmModal").style.display = "block";
 }
